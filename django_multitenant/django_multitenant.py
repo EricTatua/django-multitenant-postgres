@@ -1,6 +1,7 @@
 import logging
 from django.apps import apps
 from django.db import models
+
 try:
     from threading import local
 except ImportError:
@@ -12,6 +13,4 @@ from collections import OrderedDict
 
 from .fields import TenantForeignKey, TenantOneToOneField
 from .models import TenantManager, TenantModel
-from .thread import ThreadLocals
-from .utils import (get_current_user, get_model_by_db_table,
-                    get_current_tenant, set_current_tenant)
+from .utils import get_model_by_db_table, get_current_tenant, set_current_tenant

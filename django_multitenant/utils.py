@@ -11,33 +11,26 @@ except ImportError:
 _thread_locals = local()
 
 
-def get_current_user():
-    """
-    Despite arguments to the contrary, it is sometimes necessary to find out who is the current
-    logged in user, even if the request object is not in scope.  The best way to do this is
-    by storing the user object in middleware while processing the request.
-    """
-    return getattr(_thread_locals, 'user', None)
-
-
 def get_model_by_db_table(db_table):
     for model in apps.get_models():
         if model._meta.db_table == db_table:
             return model
     else:
         # here you can do fallback logic if no model with db_table found
-        raise ValueError('No model found with db_table {}!'.format(db_table))
+        raise ValueError("No model found with db_table {}!".format(db_table))
         # or return None
 
 
 def get_current_tenant():
     """
-    To get the Tenant instance for the currently logged in tenant.
-    example:
-        tenant = get_current_tenant()
+    Utils to get the tenant that hass been set in the current thread using `set_current_tenant`.
+    Can be used by doing:
+    ```
+        my_class_object = get_current_tenant()
+    ```
+    Will return None if the tenant is not set
     """
-    # tenant may not be set yet, if request user is anonymous, or has no profile,
-    return getattr(_thread_locals, 'tenant', None)
+    return getattr(_thread_locals, "tenant", None)
 
 
 def get_tenant_column(model_class_or_instance):
@@ -47,9 +40,11 @@ def get_tenant_column(model_class_or_instance):
     try:
         return model_class_or_instance.tenant_field
     except:
-        raise ValueError('''%s is not an instance or a subclass of TenantModel
-                         or does not inherit from TenantMixin'''
-                         % model_class_or_instance.__class__.__name__)
+        raise ValueError(
+            """%s is not an instance or a subclass of TenantModel
+                         or does not inherit from TenantMixin"""
+            % model_class_or_instance.__class__.__name__
+        )
 
 
 def get_tenant_field(model_class_or_instance):
@@ -58,8 +53,25 @@ def get_tenant_field(model_class_or_instance):
     try:
         return next(field for field in all_fields if field.column == tenant_column)
     except StopIteration:
-        raise ValueError('No field found in {} with column name "{}"'.format(
-                         model_class_or_instance, tenant_column))
+        raise ValueError(
+            'No field found in {} with column name "{}"'.format(
+                model_class_or_instance, tenant_column
+            )
+        )
+
+
+def get_object_tenant(instance):
+    field = get_tenant_field(instance)
+
+    if field.primary_key:
+        return instance
+
+    return getattr(instance, field.name, None)
+
+
+def set_object_tenant(instance, value):
+    if instance.tenant_value is None and value and not isinstance(value, list):
+        setattr(instance, instance.tenant_field, value)
 
 
 def get_current_tenant_value():
@@ -87,7 +99,7 @@ def get_tenant_filters(table, filters=None):
         return filters
 
     if isinstance(current_tenant_value, list):
-        filters['%s__in' % get_tenant_column(table)] = current_tenant_value
+        filters["%s__in" % get_tenant_column(table)] = current_tenant_value
     else:
         filters[get_tenant_column(table)] = current_tenant_value
 
@@ -95,11 +107,21 @@ def get_tenant_filters(table, filters=None):
 
 
 def set_current_tenant(tenant):
-    setattr(_thread_locals, 'tenant', tenant)
+    """
+    Utils to set a tenant in the current thread.
+    Often used in a middleware once a user is logged in to make sure all db
+    calls are sharded to the current tenant.
+    Can be used by doing:
+    ```
+        get_current_tenant(my_class_object)
+    ```
+    """
+
+    setattr(_thread_locals, "tenant", tenant)
 
 
 def unset_current_tenant():
-    setattr(_thread_locals, 'tenant', None)
+    setattr(_thread_locals, "tenant", None)
 
 
 def is_distributed_model(model):
